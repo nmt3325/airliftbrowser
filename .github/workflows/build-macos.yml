@@ -1,0 +1,45 @@
+name: Build Airlift Browser (macOS)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build macOS app (Apple Silicon)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Show macOS / Xcode / Swift versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build application
+        run: make
+
+      - name: Verify app and package ZIP
+        run: |
+          test -f "dist/Airlift Browser.app/Contents/MacOS/AirliftBrowser"
+          codesign --verify --strict "dist/Airlift Browser.app"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "dist/Airlift Browser.app" "dist/Airlift-Browser-macOS-arm64.zip"
+          unzip -t "dist/Airlift-Browser-macOS-arm64.zip" | tail -1
+
+      - name: Upload built application
+        uses: actions/upload-artifact@v4
+        with:
+          name: Airlift-Browser-macOS-arm64
+          path: dist/Airlift-Browser-macOS-arm64.zip
+          if-no-files-found: error
+          retention-days: 30
